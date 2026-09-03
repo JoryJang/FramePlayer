@@ -29,3 +29,17 @@ TestData/*.bin
 Logger - 副本.h
 *~
 *.tmp
+
+# ===== 本地实验/草稿脚本与产物（不入库） =====
+_build/
+_build.sh
+_hello.*
+_moc_*.cpp
+_ovlchk.cpp
+_synchk.sh
+
+# ===== 运行时生成 =====
+logs/
+
+# ===== WorkBuddy 工作区数据 =====
+.workbuddy/

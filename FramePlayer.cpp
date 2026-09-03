@@ -18,7 +18,7 @@ FramePlayer::FramePlayer(QWidget *parent)
     // 设置窗口图标
     setWindowIcon(QIcon(QStringLiteral(":/FramePlayer/app.ico")));
 
-    // 主窗口也接受文件拖放（图像区之外的区域）
+    // 整个窗口接受文件拖放（图像显示控件不再自行处理拖放，事件上浮到这里统一处理）
     setAcceptDrops(true);
 
     // ---- 显式 connect()，不使用按名字自动连接 ----
@@ -38,13 +38,23 @@ FramePlayer::FramePlayer(QWidget *parent)
     connect(&m_cppPollTimer, &QTimer::timeout,
             this, &FramePlayer::onCppPollTick);
 
-    // 图像区拖放文件 → 加载
-    connect(ui.frameView, &FrameViewWidget::fileDropped,
-            this, &FramePlayer::onFileDropped);
-
-    // 数据源切换
-    connect(ui.radioFile, &QRadioButton::toggled,
-            this, &FramePlayer::onSourceModeChanged);
+    // 数据源切换：5 个 RadioButton 统一交给互斥组，由 buttonToggled 驱动。
+    // 只在 checked == true（新选中项）时刷新，
+    // 避免「旧项取消选中」再重复触发一次序列重建
+    m_sourceGroup = new QButtonGroup(this);
+    m_sourceGroup->addButton(ui.radioFile);
+    m_sourceGroup->addButton(ui.radioFileThread);
+    m_sourceGroup->addButton(ui.radioFileCpp);
+    m_sourceGroup->addButton(ui.radioSim);
+    m_sourceGroup->addButton(ui.radioSimCpp);
+    // 注意：buttonToggled 有两个重载（QAbstractButton* / int），
+    // 必须用 QOverload 指定版本，否则模板参数无法推导、直接编译报错
+    connect(m_sourceGroup,
+            QOverload<QAbstractButton *, bool>::of(&QButtonGroup::buttonToggled),
+            this, [this](QAbstractButton *, bool checked) {
+        if (checked)
+            onSourceModeChanged();
+    });
 
     // 图像参数 / 模拟帧数变化统一走 onParamChanged
     connect(ui.comboFormat, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -170,11 +180,6 @@ void FramePlayer::onOpenFile()
                 QStringLiteral("所有文件 (*)"));
     if (path.isEmpty())
         return;
-    loadFile(path);
-}
-
-void FramePlayer::onFileDropped(const QString &path)
-{
     loadFile(path);
 }
 
@@ -475,6 +480,10 @@ void FramePlayer::onCppPollTick()
 
 void FramePlayer::onThreadFrame(const QByteArray &data, int index)
 {
+    // 事件已出队：立刻归还一个在途名额（无论本帧最终是否使用），
+    // 否则停止/切源路径下未消费的帧会把背压计数卡死
+    m_readThread->frameConsumed();
+
     // 停止后迟到的帧（队列中未派发）直接丢弃
     if (m_state == Stopped || !isThreadMode())
         return;

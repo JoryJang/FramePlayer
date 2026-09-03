@@ -13,7 +13,7 @@ enum class PixelFormat
     Gray8     // 每像素 1 字节，8 位灰度
 };
 
-// 二进制图像帧显示控件
+// 二进制图像帧显示控件（只负责显示，拖放由主窗口统一处理）
 // 功能：
 //   1. 按指定格式/宽高解析原始二进制帧并显示（零拷贝：QImage 直接包装外部缓冲）
 //   2. 图像等比缩放居中显示（黑底）；缩放结果按控件尺寸缓存，
@@ -53,14 +53,10 @@ public:
     static QString formatName(PixelFormat fmt);
 
 signals:
-    // 用户把文件拖放到显示区域时发出
-    void fileDropped(const QString &path);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;   // 尺寸变化时重建缩放缓存
-    void dragEnterEvent(QDragEnterEvent *event) override;
-    void dropEvent(QDropEvent *event) override;
 
 private:
     void refreshScaled();                     // 按当前控件尺寸重建缩放缓存

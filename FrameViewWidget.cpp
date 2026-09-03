@@ -3,10 +3,6 @@
 
 #include <QPainter>
 #include <QPaintEvent>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QMimeData>
-#include <QUrl>
 
 // 帧率统计窗口：用最近 30 帧的到达间隔估算 FPS
 static const int kFpsWindowSize = 30;
@@ -22,27 +18,6 @@ FrameViewWidget::FrameViewWidget(QWidget *parent)
 
     setMinimumSize(320, 240);
     m_fpsTimer.start();
-
-    // 接受文件拖放
-    setAcceptDrops(true);
-}
-
-void FrameViewWidget::dragEnterEvent(QDragEnterEvent *event)
-{
-    // 文件格式不限：只要拖入的是本地文件就接受
-    if (event->mimeData()->hasUrls())
-        event->acceptProposedAction();
-}
-
-void FrameViewWidget::dropEvent(QDropEvent *event)
-{
-    const QList<QUrl> urls = event->mimeData()->urls();
-    if (!urls.isEmpty()) {
-        const QString path = urls.first().toLocalFile();
-        if (!path.isEmpty())
-            emit fileDropped(path);   // 交给主窗口加载
-    }
-    event->acceptProposedAction();
 }
 
 int FrameViewWidget::bytesPerPixel(PixelFormat fmt)

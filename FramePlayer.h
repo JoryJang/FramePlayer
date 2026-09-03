@@ -3,6 +3,7 @@
 #include <QtWidgets/QMainWindow>
 #include <QTimer>
 #include <QFile>
+#include <QButtonGroup>
 #include "ui_FramePlayer.h"
 #include "FrameReadThread.h"
 #include "CppFrameSource.h"
@@ -27,7 +28,7 @@ public:
     ~FramePlayer();
 
 protected:
-    // 主窗口区域（非图像区）也接受文件拖放
+    // 整个窗口区域统一接受文件拖放（含图像区：显示控件不接收拖放，事件上浮到主窗口）
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
 
@@ -40,7 +41,6 @@ private slots:
     void onSliderMoved(int value);         // 拖动进度条跳转
     void onParamChanged();                 // 格式 / 宽高 / 模拟帧数变化
     void onSourceModeChanged();            // 数据源切换（本地文件 / 子线程 / 模拟数据）
-    void onFileDropped(const QString &path);  // 图像区收到拖放文件
     void onThreadFrame(const QByteArray &data, int index);  // QThread 子线程回发一帧
     void onThreadOpenFailed(const QString &path);           // QThread 子线程打开文件失败
     void onCppPollTick();                    // 纯C++线程模式：定时从帧队列取帧显示
@@ -66,6 +66,12 @@ private:
     void stopCppSource();                  // 停止纯C++线程数据源（未运行则无操作）
 
     Ui::FramePlayerClass ui;
+
+    // 5 个数据源 RadioButton 的互斥组，统一发出切换通知。
+    // 不能只监听 radioFile 的 toggled：那样「非 radioFile → 非 radioFile」
+    // （如 子线程 → 模拟数据）时 radioFile 状态未变，收不到任何信号，
+    // 会导致控件启用状态、总帧数与预览画面都不刷新
+    QButtonGroup *m_sourceGroup = nullptr;
 
     QFile      m_file;          // 本地文件句柄（保持打开，按需 seek 读帧）
     QByteArray m_frameBuffer;   // 文件帧读取缓冲（复用，内存占用恒为单帧大小）
