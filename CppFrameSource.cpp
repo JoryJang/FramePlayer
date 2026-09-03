@@ -62,6 +62,7 @@ void CppFrameSource::configure(Mode mode, const std::wstring &path,
     m_stop       = false;
     m_paused     = false;
     m_openFailed = false;
+    m_readFailed = false;
     m_seekFrame  = -1;
     m_dropped    = 0;
 
@@ -197,12 +198,14 @@ void CppFrameSource::threadMain()
                     file.clear();
                     file.seekg(static_cast<std::streamoff>(idx) * m_frameSize, std::ios::beg);
                     if (!file.good()) {
+                        m_readFailed = true;     // 通知 GUI 播放异常终止
                         m_freeRing.push(slot);   // 退出前归还槽位
                         break;
                     }
                 }
                 file.read(reinterpret_cast<char *>(f.data.data()), m_frameSize);
                 if (file.gcount() < m_frameSize) {
+                    m_readFailed = true;         // 通知 GUI 播放异常终止
                     m_freeRing.push(slot);
                     break;   // 读不足一帧，退出
                 }

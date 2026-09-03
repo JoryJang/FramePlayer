@@ -72,11 +72,13 @@ FramePlayer::FramePlayer(QWidget *parent)
             this, &FramePlayer::onThreadFrame);
     connect(m_readThread, &FrameReadThread::openFailed,
             this, &FramePlayer::onThreadOpenFailed);
+    connect(m_readThread, &FrameReadThread::playbackError,
+            this, &FramePlayer::onThreadPlaybackError);
 
     // 帧率变化只调整定时节奏，不打断播放（两种驱动方式都同步）
     connect(ui.spinFps, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int fps) {
-        m_playTimer.setInterval(1000 / fps);
+        m_playTimer.setInterval(1000 / qMax(1, fps));
         m_readThread->setFps(fps);
         m_cppSource.setFps(fps);
     });
@@ -100,12 +102,7 @@ FramePlayer::~FramePlayer()
 
 int FramePlayer::bytesPerPixel() const
 {
-    switch (ui.comboFormat->currentIndex()) {
-    case 0: return 3;   // RGB888
-    case 1: return 2;   // RGB565
-    case 2: return 1;   // 灰度8位
-    }
-    return 0;
+    return FrameViewWidget::bytesPerPixel(currentFormat());
 }
 
 PixelFormat FramePlayer::currentFormat() const
@@ -121,6 +118,12 @@ PixelFormat FramePlayer::currentFormat() const
 int FramePlayer::frameSize() const
 {
     return ui.spinWidth->value() * ui.spinHeight->value() * bytesPerPixel();
+}
+
+int FramePlayer::currentFps() const
+{
+    // UI 下限已设为 1，此处再兜底，避免任何路径下出现 1000/fps 除零
+    return qMax(1, ui.spinFps->value());
 }
 
 bool FramePlayer::isThreadMode() const
@@ -246,29 +249,14 @@ void FramePlayer::onSourceModeChanged()
     ui.labelSimFrames->setEnabled(!fileMode);
     ui.spinSimFrames->setEnabled(!fileMode);
 
-    // 按数据源计算总帧数
-    if (fileMode)
-        m_totalFrames = (m_file.isOpen() && frameSize() > 0)
-                ? static_cast<int>(m_file.size() / frameSize()) : 0;
-    else
-        m_totalFrames = ui.spinSimFrames->value();
+    // 按数据源重建帧序列（总帧数 / 滑条 / 预览）
+    rebuildSequence();
 
-    m_currentFrame = 0;
-    ui.sliderFrame->setRange(0, qMax(0, m_totalFrames - 1));
-    ui.sliderFrame->setValue(0);
-
-    if (m_totalFrames > 0)
-        showFrameAt(0);   // 预览第 0 帧
-    else {
-        ui.frameView->clear();
-        updateFrameInfo();
-        // 文件已加载但不足一帧时提示原因，便于排查格式/宽高设置
-        if (fileMode && m_file.isOpen())
-            statusBar()->showMessage(
-                QStringLiteral("文件 %1 字节，不足一帧（%2 字节），请检查格式与宽高设置")
-                    .arg(m_file.size()).arg(frameSize()));
-    }
-    updateControlStates();
+    // 文件已加载但不足一帧时提示原因，便于排查格式/宽高设置
+    if (fileMode && m_file.isOpen() && m_totalFrames <= 0)
+        statusBar()->showMessage(
+            QStringLiteral("文件 %1 字节，不足一帧（%2 字节），请检查格式与宽高设置")
+                .arg(m_file.size()).arg(frameSize()));
 
     const char *modeName = ui.radioSim->isChecked()    ? "模拟数据"
                          : ui.radioSimCpp->isChecked() ? "模拟数据(纯C++线程)"
@@ -289,10 +277,22 @@ void FramePlayer::onParamChanged()
     stopReadThread();
     stopCppSource();
     m_state = Stopped;
+    m_lastLoggedFrame = 0;
 
     ui.frameView->setFormat(currentFormat(),
                             ui.spinWidth->value(), ui.spinHeight->value());
 
+    rebuildSequence();
+
+    LOG_DEBUG("参数变化: {} {}x{} | 总帧数 {}",
+              FrameViewWidget::formatName(currentFormat()).toStdString(),
+              ui.spinWidth->value(), ui.spinHeight->value(), m_totalFrames);
+}
+
+// 按当前数据源与参数重算总帧数，复位播放位置、滑条范围与预览画面。
+// onSourceModeChanged / onParamChanged 共用此重建逻辑
+void FramePlayer::rebuildSequence()
+{
     if (isFileLikeMode())
         m_totalFrames = (m_file.isOpen() && frameSize() > 0)
                 ? static_cast<int>(m_file.size() / frameSize()) : 0;
@@ -300,20 +300,16 @@ void FramePlayer::onParamChanged()
         m_totalFrames = ui.spinSimFrames->value();
 
     m_currentFrame = 0;
-    m_lastLoggedFrame = 0;
     ui.sliderFrame->setRange(0, qMax(0, m_totalFrames - 1));
     ui.sliderFrame->setValue(0);
 
     if (m_totalFrames > 0)
-        showFrameAt(0);
+        showFrameAt(0);   // 预览第 0 帧
     else {
         ui.frameView->clear();
         updateFrameInfo();
     }
     updateControlStates();
-    LOG_DEBUG("参数变化: {} {}x{} | 总帧数 {}",
-              FrameViewWidget::formatName(currentFormat()).toStdString(),
-              ui.spinWidth->value(), ui.spinHeight->value(), m_totalFrames);
 }
 
 // ---------------- 播放控制 ----------------
@@ -332,7 +328,7 @@ void FramePlayer::onStart()
     if (isThreadMode()) {
         // QThread 子线程驱动：传参后启动，定时由线程内 while+msleep 自持
         m_readThread->setParams(m_file.fileName(), frameSize(),
-                                m_totalFrames, ui.spinFps->value());
+                                m_totalFrames, currentFps());
         m_readThread->start();
     } else if (isCppMode()) {
         // 纯C++线程驱动：std::thread 产帧入队，主线程 QTimer 轮询取帧
@@ -348,18 +344,18 @@ void FramePlayer::onStart()
         m_cppSource.configure(mode,
                               isCppFileMode() ? m_file.fileName().toStdWString()
                                               : std::wstring(),
-                              frameSize(), m_totalFrames, ui.spinFps->value(),
+                              frameSize(), m_totalFrames, currentFps(),
                               fmt, ui.spinWidth->value(), ui.spinHeight->value());
         m_cppSource.start();
         m_cppPollTimer.start(10);
     } else {
-        m_playTimer.start(1000 / ui.spinFps->value());
+        m_playTimer.start(1000 / currentFps());
     }
     const char *drive = isThreadMode() ? "QThread子线程"
                       : isCppMode()    ? "纯C++线程"
                                        : "主线程";
     LOG_INFO("开始播放: 模式={} | {} FPS | 总帧数 {}",
-             drive, ui.spinFps->value(), m_totalFrames);
+             drive, currentFps(), m_totalFrames);
     updateControlStates();
 }
 
@@ -368,8 +364,10 @@ void FramePlayer::onPauseResume()
     if (m_state == Playing) {
         if (isThreadMode())
             m_readThread->setPaused(true);   // 线程内小睡空转，保持现场
-        else if (isCppMode())
+        else if (isCppMode()) {
             m_cppSource.setPaused(true);
+            m_cppPollTimer.stop();   // 暂停期间停止轮询，避免定时器空转
+        }
         else
             m_playTimer.stop();
         m_state = Paused;
@@ -378,10 +376,12 @@ void FramePlayer::onPauseResume()
         m_state = Playing;
         if (isThreadMode())
             m_readThread->setPaused(false);
-        else if (isCppMode())
+        else if (isCppMode()) {
             m_cppSource.setPaused(false);
+            m_cppPollTimer.start(10);
+        }
         else
-            m_playTimer.start(1000 / ui.spinFps->value());
+            m_playTimer.start(1000 / currentFps());
         LOG_INFO("继续播放（第 {}/{} 帧）", m_currentFrame + 1, m_totalFrames);
     }
     updateControlStates();
@@ -459,6 +459,15 @@ void FramePlayer::onCppPollTick()
         return;
     }
 
+    // 子线程播放中途读帧失败（文件被截断等）：停播并提示（只提示一次）
+    if (m_cppSource.readFailed()) {
+        onStop();
+        LOG_ERROR("纯C++线程读帧失败（文件可能被外部截断或读取错误）");
+        QMessageBox::warning(this, QStringLiteral("错误"),
+                             QStringLiteral("播放中止：读帧失败，文件可能被外部截断或读取错误"));
+        return;
+    }
+
     // 取最新一帧（acquireFrame 内部排空只留最新）；
     // 零拷贝：归还上一个槽再持有新槽，图像直接包装槽内内存
     CppFrameSource::Frame *f = m_cppSource.acquireFrame();
@@ -506,6 +515,15 @@ void FramePlayer::onThreadOpenFailed(const QString &path)
     LOG_ERROR("子线程打开文件失败: {}", path.toStdString());
     QMessageBox::warning(this, QStringLiteral("错误"),
                          QStringLiteral("子线程无法打开文件：%1").arg(path));
+}
+
+void FramePlayer::onThreadPlaybackError(const QString &reason)
+{
+    // 播放中途读帧失败（文件被外部截断等）：子线程已自行退出，停播并提示
+    onStop();
+    LOG_ERROR("子线程读帧失败: {}", reason.toStdString());
+    QMessageBox::warning(this, QStringLiteral("错误"),
+                         QStringLiteral("播放中止：读帧失败（%1）").arg(reason));
 }
 
 // ---------------- 帧获取 ----------------

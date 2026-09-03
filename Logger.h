@@ -14,6 +14,7 @@
 #include <string>
 #include <memory>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 
 #include <spdlog/spdlog.h>
@@ -145,7 +146,11 @@ inline void qtMessageHandler(QtMsgType type, const QMessageLogContext &context,
     case QtInfoMsg:     LOG_INFO("Qt: {}", msg.toStdString());                      break;
     case QtWarningMsg:  LOG_WARN("Qt: {} ({}:{})", msg.toStdString(), file, line);  break;
     case QtCriticalMsg: LOG_ERROR("Qt: {} ({}:{})", msg.toStdString(), file, line); break;
-    case QtFatalMsg:    LOG_ERROR("Qt(fatal): {} ({}:{})", msg.toStdString(), file, line); break;
+    case QtFatalMsg:
+        LOG_ERROR("Qt(fatal): {} ({}:{})", msg.toStdString(), file, line);
+        // Qt 约定：fatal 消息后处理器必须终止进程，否则继续运行属未定义行为
+        std::abort();
+        break;
     }
 }
 #endif // APPLOG_HAVE_QT

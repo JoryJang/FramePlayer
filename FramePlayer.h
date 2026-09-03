@@ -43,6 +43,7 @@ private slots:
     void onSourceModeChanged();            // 数据源切换（本地文件 / 子线程 / 模拟数据）
     void onThreadFrame(const QByteArray &data, int index);  // QThread 子线程回发一帧
     void onThreadOpenFailed(const QString &path);           // QThread 子线程打开文件失败
+    void onThreadPlaybackError(const QString &reason);      // QThread 子线程播放中途读帧失败
     void onCppPollTick();                    // 纯C++线程模式：定时从帧队列取帧显示
 
 private:
@@ -50,6 +51,7 @@ private:
     enum PlayState { Stopped, Playing, Paused };
 
     void loadFile(const QString &path);    // 加载本地文件（仅打开句柄）
+    void rebuildSequence();                // 按当前数据源/参数重建帧序列（总帧数/滑条/预览）
     void showFrameAt(int index);           // 显示第 index 帧（按数据源取帧）
     void makeSimFrame(int index);          // 生成第 index 帧模拟数据到 m_simBuffer
     void updateFrameInfo();                // 刷新 "当前帧 / 总帧数" 标签
@@ -57,6 +59,7 @@ private:
     int  bytesPerPixel() const;            // 当前选择的每像素字节数
     PixelFormat currentFormat() const;     // 当前选择的像素格式
     int  frameSize() const;                // 当前参数下每帧字节数
+    int  currentFps() const;               // 当前帧率（防御性下限 1，避免除零）
     bool isThreadMode() const;             // 当前是否为「本地文件（QThread 子线程）」模式
     bool isCppMode() const;                // 当前是否为纯C++线程模式（文件或模拟）
     bool isCppFileMode() const;            // 当前是否为「本地文件（纯C++线程）」模式

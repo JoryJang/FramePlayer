@@ -52,6 +52,8 @@ signals:
     void frameReady(const QByteArray &data, int index);
     // 文件打开失败（路径随信号带出，便于提示）
     void openFailed(const QString &path);
+    // 播放中途读帧失败（文件被截断 / seek 失败等），线程即将退出
+    void playbackError(const QString &reason);
 
 protected:
     void run() override;

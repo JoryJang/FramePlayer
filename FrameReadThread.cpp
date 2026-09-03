@@ -105,11 +105,16 @@ void FrameReadThread::run()
         } else {
             // 轮转取槽：绕过 GUI 仍持有的槽，避免 data() 触发写时复制深拷贝
             const int slot = m_slotIdx;
-            if (!file.seek(static_cast<qint64>(idx) * m_frameSize))
+            if (!file.seek(static_cast<qint64>(idx) * m_frameSize)) {
+                emit playbackError(QStringLiteral("seek 失败（第 %1 帧，文件可能被外部截断）").arg(idx));
                 break;
+            }
             const qint64 n = file.read(m_slots[slot].data(), m_frameSize);
-            if (n < m_frameSize)
-                break;   // 读不足一帧（如文件被外部截断），直接退出
+            if (n < m_frameSize) {
+                emit playbackError(QStringLiteral("读数据不足一帧（第 %1 帧，读到 %2/%3 字节，文件可能被外部截断）")
+                                       .arg(idx).arg(n).arg(m_frameSize));
+                break;
+            }
             m_slotIdx = (m_slotIdx + 1) % kSlotCount;
             ++m_pending;
             emit frameReady(m_slots[slot], idx);

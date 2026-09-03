@@ -84,6 +84,8 @@ public:
 
     // 打开文件是否失败过（start 后轮询检查；失败时线程已自行退出）
     bool openFailed() const { return m_openFailed.load(); }
+    // 播放中途读帧是否失败过（文件被截断 / seek 失败；失败时线程已自行退出）
+    bool readFailed() const { return m_readFailed.load(); }
     std::wstring filePath() const { return m_path; }
 
 private:
@@ -106,6 +108,7 @@ private:
     std::atomic<bool> m_stop{false};
     std::atomic<bool> m_paused{false};
     std::atomic<bool> m_openFailed{false};
+    std::atomic<bool> m_readFailed{false};
     std::atomic<int>  m_fps{25};
     std::atomic<int>  m_seekFrame{-1};  // -1 表示无跳转请求
 
