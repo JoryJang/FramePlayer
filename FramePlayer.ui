@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FramePlayerClass</class>
+ <widget class="QMainWindow" name="FramePlayerClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>960</width>
+    <height>640</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>FramePlayer - 二进制图像播放器</string>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QHBoxLayout" name="mainLayout">
+    <item>
+     <layout class="QVBoxLayout" name="leftLayout">
+      <item>
+       <widget class="FrameViewWidget" name="frameView" native="true"/>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="seekLayout">
+        <item>
+         <widget class="QSlider" name="sliderFrame">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelFrameInfo">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>90</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>0 / 0</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupSettings">
+      <property name="minimumSize">
+       <size>
+        <width>250</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>280</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>设置</string>
+      </property>
+      <layout class="QVBoxLayout" name="settingsLayout">
+       <item>
+        <widget class="QGroupBox" name="groupSource">
+         <property name="title">
+          <string>数据源</string>
+         </property>
+         <layout class="QVBoxLayout" name="sourceLayout">
+          <item>
+           <widget class="QRadioButton" name="radioFile">
+            <property name="text">
+             <string>本地文件</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnOpen">
+            <property name="text">
+             <string>打开文件...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelFilePath">
+            <property name="text">
+             <string>未加载文件（可拖拽文件到左侧图像区）</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="radioFileThread">
+            <property name="text">
+             <string>本地文件（子线程）</string>
+            </property>
+            <property name="toolTip">
+             <string>子线程 while+sleep 顺序读帧，经信号发回主线程显示</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="radioFileCpp">
+            <property name="text">
+             <string>本地文件（纯C++线程）</string>
+            </property>
+            <property name="toolTip">
+             <string>不依赖 Qt 的 std::thread 子线程顺序读帧，经帧队列由主线程定时取帧显示</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="radioSim">
+            <property name="text">
+             <string>模拟数据</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="radioSimCpp">
+            <property name="text">
+             <string>模拟数据（纯C++线程）</string>
+            </property>
+            <property name="toolTip">
+             <string>不依赖 Qt 的 std::thread 子线程实时生成移动渐变测试帧</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="simLayout">
+            <item>
+             <widget class="QLabel" name="labelSimFrames">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>模拟帧数:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="spinSimFrames">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>100000</number>
+              </property>
+              <property name="value">
+               <number>300</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupImage">
+         <property name="title">
+          <string>图像参数</string>
+         </property>
+         <layout class="QFormLayout" name="imageLayout">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelFormat">
+            <property name="text">
+             <string>格式:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="comboFormat">
+            <item>
+             <property name="text">
+              <string>RGB888</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>RGB565</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>灰度8位</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelWidth">
+            <property name="text">
+             <string>宽:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSpinBox" name="spinWidth">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>16384</number>
+            </property>
+            <property name="value">
+             <number>320</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelHeight">
+            <property name="text">
+             <string>高:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSpinBox" name="spinHeight">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>16384</number>
+            </property>
+            <property name="value">
+             <number>240</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupPlay">
+         <property name="title">
+          <string>播放控制</string>
+         </property>
+         <layout class="QVBoxLayout" name="playLayout">
+          <item>
+           <layout class="QFormLayout" name="fpsLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="labelFps">
+              <property name="text">
+               <string>帧率:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QSpinBox" name="spinFps">
+              <property name="suffix">
+               <string> fps</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>240</number>
+              </property>
+              <property name="value">
+               <number>25</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnStart">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>开始播放</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnPauseResume">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>暂停</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnStop">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>停止</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="settingsSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>960</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QToolBar" name="mainToolBar">
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>FrameViewWidget</class>
+   <extends>QWidget</extends>
+   <header>FrameViewWidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="FramePlayer.qrc"/>
+ </resources>
+ <connections/>
+</ui>

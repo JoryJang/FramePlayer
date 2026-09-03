@@ -1,0 +1,31 @@
+# ===== Visual Studio / IDE =====
+.vs/
+*.user
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+
+# ===== 构建输出与中间产物 =====
+Debug/
+Release/
+x64/
+x86/
+FramePlayer/          # VS 中间目录 (.obj/.tlog/.log/.cbt 等)
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.log
+*.tlog
+*.cbt
+*.iobj
+*.ipdb
+
+# ===== 测试数据（由 TestData/gen_test_frames.py 生成）=====
+TestData/*.bin
+
+# ===== 临时/备份 =====
+Logger - 副本.h
+*~
+*.tmp

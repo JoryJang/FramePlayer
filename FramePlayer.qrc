@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="FramePlayer">
+        <file alias="app.ico">app.ico</file>
+    </qresource>
+</RCC>
